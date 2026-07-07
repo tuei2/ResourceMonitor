@@ -173,10 +173,11 @@ enum MenubarRenderer {
         case .ram:         name = "memorychip"
         case .battery:     name = state.battery.isCharging ? "battery.100percent.bolt" : "battery.75percent"
         case .network:
-            // Reflect the active connection type; the same shield as the VPN badge
-            // when on VPN.
+            // Reflect the active connection type; a shield with a lock when on VPN.
+            // Use the non-filled variant: the .fill version renders as a solid
+            // shield with no visible lock in the monochrome menu bar.
             if state.network.vpnActive {
-                name = "lock.shield.fill"
+                name = "lock.shield"
             } else {
                 switch state.network.connectionType {
                 case .wifi:     name = "wifi"
