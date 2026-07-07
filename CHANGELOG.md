@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Network card IP addresses no longer wrap mid-value when the VPN badge is shown;
   they stay on one line and keep priority over the header badge.
+- The "VPN active" badge no longer stretches tall when space is tight (keeps its
+  natural size), and the menu-bar VPN icon uses a better-proportioned glyph.
 - History (CPU, memory, GPU, network, disk) now persists across app restarts:
   it is saved on quit and restored for up to 8 days, so the day/week graphs are
   no longer a flat line after reopening. CPU history is now persisted too.

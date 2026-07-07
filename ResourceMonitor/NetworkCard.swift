@@ -279,7 +279,9 @@ private struct VPNBadge: View {
                 .font(.system(size: 9))
             Text("VPN active")
                 .font(.system(size: 9, weight: .bold))
+                .lineLimit(1)
         }
+        .fixedSize()
         .foregroundStyle(.green)
         .padding(.horizontal, 5)
         .padding(.vertical, 2)
