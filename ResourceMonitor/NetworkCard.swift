@@ -441,7 +441,6 @@ private struct CopyableIPRow: View {
                 .font(.system(size: 11, design: .monospaced))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
-                .fixedSize()
             Button {
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(ip, forType: .string)
