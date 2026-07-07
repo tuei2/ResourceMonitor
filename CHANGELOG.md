@@ -7,11 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-07-07
+
+### Added
+- Settings **About** tab showing the app version and build, GitHub links, and a
+  manual update check.
+
+### Changed
+- Bluetooth devices and battery levels are now read entirely from
+  `system_profiler`, which needs no Bluetooth permission and avoids an
+  IOBluetooth privacy-violation crash on macOS 14+. CoreBluetooth is used only to
+  detect when the radio is off.
+
 ### Fixed
-- Bluetooth devices no longer appeared on macOS 14+ because the app never
-  requested Bluetooth authorization. The app now requests and checks CoreBluetooth
-  permission and shows a notice with a shortcut to System Settings when access is
-  denied.
+- Bluetooth devices no longer appeared on macOS 14+, and battery levels (including
+  per-side AirPods levels) are now shown for devices that report them.
+- The Bluetooth card now refreshes when it appears, so devices are listed even
+  when periodic Bluetooth polling is turned off in settings.
 
 ## [1.0.0] - 2026-07-07
 
@@ -27,5 +39,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - English & Dutch localization, switchable live in Settings.
 - Automatic update checks against GitHub Releases.
 
-[Unreleased]: https://github.com/tuei2/ResourceMonitor/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/tuei2/ResourceMonitor/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/tuei2/ResourceMonitor/releases/tag/v1.0.1
 [1.0.0]: https://github.com/tuei2/ResourceMonitor/releases/tag/v1.0.0

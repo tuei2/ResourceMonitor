@@ -1,6 +1,5 @@
 import Foundation
 import AppKit
-import IOBluetooth
 import CoreBluetooth
 
 struct BluetoothDevice: Identifiable, Equatable {
@@ -25,30 +24,28 @@ struct BluetoothDevice: Identifiable, Equatable {
     }
 }
 
-/// High-level Bluetooth permission state for the UI.
+/// High-level Bluetooth power/permission state for the UI.
 enum BluetoothPermission: Equatable {
-    case unknown       // not yet determined / manager still initializing
-    case authorized
-    case denied        // user denied or restricted
-    case unsupported   // no Bluetooth hardware / powered off at system level
+    case unknown       // not yet determined
+    case authorized    // available and readable
+    case denied        // user denied CoreBluetooth access
+    case unsupported   // no Bluetooth hardware or powered off
 }
 
+/// Reads paired/connected Bluetooth devices and their battery levels from
+/// `system_profiler SPBluetoothDataType`, which — unlike IOBluetooth on
+/// macOS 14+ — needs no Bluetooth TCC grant and never crashes on a privacy
+/// violation. CoreBluetooth is used only to report power/permission state.
 final class BluetoothMonitor: NSObject, ObservableObject, Monitor {
     @Published var devices: [BluetoothDevice] = []
     @Published var permission: BluetoothPermission = .unknown
 
     private let queue = DispatchQueue(label: "com.resourcemonitor.bluetooth", qos: .utility)
     private var timer: DispatchSourceTimer?
-
-    // CoreBluetooth is required so macOS grants us Bluetooth access (TCC).
-    // Without an initialized central manager, IOBluetooth.pairedDevices()
-    // returns an empty list on macOS 14+.
     private var central: CBCentralManager?
 
     override init() {
         super.init()
-        // Creating the manager triggers the authorization prompt on first launch
-        // and lets us observe the current authorization state.
         central = CBCentralManager(delegate: self, queue: nil,
                                    options: [CBCentralManagerOptionShowPowerAlertKey: false])
         refreshPermission()
@@ -56,6 +53,7 @@ final class BluetoothMonitor: NSObject, ObservableObject, Monitor {
 
     func start(interval: Double = 2.0) {
         stop()
+        // system_profiler is relatively slow, so never poll faster than 5s.
         let t = DispatchSource.makeTimerSource(queue: queue)
         t.schedule(deadline: .now(), repeating: max(interval, 5))
         t.setEventHandler { [weak self] in self?.update() }
@@ -72,90 +70,109 @@ final class BluetoothMonitor: NSObject, ObservableObject, Monitor {
         }
     }
 
-    // MARK: - Permission
+    // MARK: - Permission / power state
 
     private func refreshPermission() {
         let auth = CBManager.authorization
+        let state = central?.state ?? .unknown
         let newState: BluetoothPermission
         switch auth {
-        case .allowedAlways:  newState = .authorized
-        case .denied, .restricted: newState = .denied
-        case .notDetermined:  newState = .unknown
-        @unknown default:     newState = .unknown
+        case .denied, .restricted:
+            newState = .denied
+        case .allowedAlways, .notDetermined:
+            // system_profiler works regardless of the CoreBluetooth grant;
+            // only surface a problem when the radio is off/absent.
+            newState = (state == .poweredOff || state == .unsupported) ? .unsupported : .authorized
+        @unknown default:
+            newState = .authorized
         }
         DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
-            if self.permission != newState { self.permission = newState }
+            guard let self, self.permission != newState else { return }
+            self.permission = newState
         }
     }
 
     // MARK: - Reading
 
+    /// One-shot device read, independent of the polling timer. Called when the
+    /// card appears and when CoreBluetooth becomes ready, so devices show even
+    /// when periodic Bluetooth polling (`bluetoothEnabled`) is turned off.
+    func refreshOnce() {
+        queue.async { [weak self] in self?.update() }
+    }
+
     private func update() {
-        // IOBluetooth calls must happen on the main thread
+        let list = Self.fetchDevices()
         DispatchQueue.main.async { [weak self] in
-            self?.readDevices()
+            guard let self else { return }
+            self.refreshPermission()
+            self.devices = list
         }
     }
 
-    private func readDevices() {
-        refreshPermission()
+    // MARK: - system_profiler parsing
 
-        // Only attempt to read once we're authorized; otherwise the list would
-        // silently come back empty and mask the real (permission) cause.
-        guard permission == .authorized else {
-            if !devices.isEmpty { devices = [] }
-            return
+    private static func fetchDevices() -> [BluetoothDevice] {
+        guard let root = runSystemProfiler(),
+              let blocks = root["SPBluetoothDataType"] as? [[String: Any]] else { return [] }
+
+        var result: [BluetoothDevice] = []
+        for block in blocks {
+            result += parse(block["device_connected"], connected: true)
+            result += parse(block["device_not_connected"], connected: false)
         }
-
-        guard let paired = IOBluetoothDevice.pairedDevices() as? [IOBluetoothDevice] else { return }
-
-        devices = paired.compactMap { device -> BluetoothDevice? in
-            guard let name = device.name, !name.isEmpty else { return nil }
-            let addr      = device.addressString ?? name
-            let connected = device.isConnected()
-            let battery   = batteryLevel(device)
-            let category  = classify(device)
-            return BluetoothDevice(id: addr, name: name, category: category,
-                                   isConnected: connected, batteryPercent: battery)
-        }
-        .sorted { $0.isConnected && !$1.isConnected }
+        return result.sorted { $0.isConnected && !$1.isConnected }
     }
 
-    private func batteryLevel(_ device: IOBluetoothDevice) -> Int {
-        // Private IOBluetooth battery properties are blocked by the runtime on macOS 14+.
-        // Return unknown until a public API is available.
-        return -1
+    private static func parse(_ list: Any?, connected: Bool) -> [BluetoothDevice] {
+        guard let entries = list as? [[String: Any]] else { return [] }
+        return entries.compactMap { entry -> BluetoothDevice? in
+            guard let (name, value) = entry.first,
+                  let props = value as? [String: Any] else { return nil }
+            let addr = (props["device_address"] as? String) ?? name
+            return BluetoothDevice(
+                id: addr,
+                name: name,
+                category: category(minorType: props["device_minorType"] as? String, name: name),
+                isConnected: connected,
+                batteryPercent: batteryPercent(from: props)
+            )
+        }
     }
 
-    private func classify(_ device: IOBluetoothDevice) -> BluetoothDevice.Category {
-        let name  = (device.name ?? "").lowercased()
-        let clazz = Int(device.classOfDevice)
+    private static func batteryPercent(from props: [String: Any]) -> Int {
+        func value(_ key: String) -> Int? {
+            guard let s = props[key] as? String else { return nil }
+            return Int(s.replacingOccurrences(of: "%", with: "").trimmingCharacters(in: .whitespaces))
+        }
+        if let main = value("device_batteryLevelMain") { return main }
+        let sides = [value("device_batteryLevelLeft"), value("device_batteryLevelRight")].compactMap { $0 }
+        return sides.min() ?? -1
+    }
 
-        // Major device class from Bluetooth CoD
-        let major = (clazz >> 8) & 0x1F
-        switch major {
-        case 4: // Audio/Video — all peripherals in this class map to headphones
-            return .headphones
-        case 5: // Peripheral
-            let minor = (clazz >> 2) & 0x3F
-            switch minor {
-            case 0x01...0x03: return .keyboard
-            case 0x04...0x06: return .mouse
-            case 0x07:        return .trackpad
-            default:          break
-            }
-        case 8: return .controller
+    private static func category(minorType: String?, name: String) -> BluetoothDevice.Category {
+        switch minorType?.lowercased() {
+        case "keyboard":            return .keyboard
+        case "mouse":               return .mouse
+        case "trackpad":            return .trackpad
+        case "headphones", "headset", "speaker": return .headphones
+        case "gamepad", "controller", "joystick": return .controller
         default: break
         }
-        // Name-based fallback
-        if name.contains("keyboard") { return .keyboard }
-        if name.contains("mouse")    { return .mouse }
-        if name.contains("trackpad") { return .trackpad }
-        if name.contains("airpod") || name.contains("headphone") || name.contains("beats") {
-            return .headphones
-        }
+        let n = name.lowercased()
+        if n.contains("keyboard") { return .keyboard }
+        if n.contains("mouse")    { return .mouse }
+        if n.contains("trackpad") { return .trackpad }
+        if n.contains("airpod") || n.contains("headphone") || n.contains("beats") { return .headphones }
         return .unknown
+    }
+
+    /// Runs system_profiler via the shared `shellOutput` helper — the same path
+    /// used elsewhere in the app for system_profiler — and returns the parsed JSON.
+    private static func runSystemProfiler() -> [String: Any]? {
+        let out = shellOutput("/usr/sbin/system_profiler", ["SPBluetoothDataType", "-json"], timeout: 15)
+        guard let data = out.data(using: .utf8), !data.isEmpty else { return nil }
+        return try? JSONSerialization.jsonObject(with: data) as? [String: Any]
     }
 }
 
@@ -164,18 +181,7 @@ final class BluetoothMonitor: NSObject, ObservableObject, Monitor {
 extension BluetoothMonitor: CBCentralManagerDelegate {
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
         refreshPermission()
-        if central.state == .unsupported || central.state == .poweredOff {
-            DispatchQueue.main.async { [weak self] in
-                // Keep an explicit "authorized but unavailable" distinction only
-                // when access is granted; denial takes priority in refreshPermission.
-                if self?.permission == .authorized && central.state == .unsupported {
-                    self?.permission = .unsupported
-                }
-            }
-        }
-        // Once authorized, read immediately rather than waiting for the next tick.
-        if CBManager.authorization == .allowedAlways {
-            DispatchQueue.main.async { [weak self] in self?.readDevices() }
-        }
+        // Initial read so devices appear on launch even if periodic polling is off.
+        refreshOnce()
     }
 }

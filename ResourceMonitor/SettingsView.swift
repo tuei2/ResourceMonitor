@@ -8,7 +8,7 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
 
     enum Tab: String, CaseIterable, Identifiable {
-        case general, popover, menubar, thresholds
+        case general, popover, menubar, thresholds, about
         var id: String { rawValue }
         var label: String {
             switch self {
@@ -16,6 +16,7 @@ struct SettingsView: View {
             case .popover:    return L("Popover")
             case .menubar:    return L("Menu Bar")
             case .thresholds: return L("Thresholds")
+            case .about:      return L("About")
             }
         }
         var icon: String {
@@ -24,6 +25,7 @@ struct SettingsView: View {
             case .popover:    return "square.stack"
             case .menubar:    return "menubar.rectangle"
             case .thresholds: return "gauge.with.needle"
+            case .about:      return "info.circle"
             }
         }
     }
@@ -43,6 +45,7 @@ struct SettingsView: View {
                 case .popover: PopoverSettingsView()
                 case .menubar: MenubarSettingsView()
                 case .thresholds: ThresholdSettingsView()
+                case .about: AboutSettingsView()
                 }
             }
             .frame(minWidth: 420)
@@ -172,6 +175,60 @@ struct GeneralSettingsView: View {
     private func syncLaunchAtLoginStatus() {
         let registered = SMAppService.mainApp.status == .enabled
         if settings.launchAtLogin != registered { settings.launchAtLogin = registered }
+    }
+}
+
+// MARK: - About
+
+struct AboutSettingsView: View {
+    private var version: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"
+    }
+    private var build: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "—"
+    }
+    private let repoURL = URL(string: "https://github.com/tuei2/ResourceMonitor")!
+
+    var body: some View {
+        Form {
+            Section {
+                HStack(spacing: 14) {
+                    Image(nsImage: NSApp.applicationIconImage)
+                        .resizable()
+                        .frame(width: 56, height: 56)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("ResourceMonitor")
+                            .font(.system(size: 16, weight: .semibold))
+                        Text("Version \(version) (\(build))")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                            .textSelection(.enabled)
+                    }
+                    Spacer()
+                }
+            }
+
+            Section {
+                Button("Check for updates now") {
+                    UpdateChecker.shared.checkNow()
+                }
+                Link("View on GitHub", destination: repoURL)
+                Link("Release notes", destination: repoURL.appendingPathComponent("releases"))
+            }
+
+            Section {
+                Text("A native macOS menu bar system monitor.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+            } footer: {
+                Text("© 2026 tuei2")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .formStyle(.grouped)
+        .padding()
     }
 }
 

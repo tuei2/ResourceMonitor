@@ -27,15 +27,7 @@ struct BluetoothCard: View {
                         .toggleStyle(.checkbox)
                     }
 
-                    if bluetooth.permission != .authorized {
-                        BluetoothPermissionNotice(permission: bluetooth.permission) {
-                            bluetooth.openPrivacySettings()
-                        }
-                    } else if visibleDevices.isEmpty {
-                        Text(settings.bluetoothShowOnlyConnected ? "No connected devices" : "No paired devices")
-                            .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
-                    } else {
+                    if !visibleDevices.isEmpty {
                         VStack(spacing: 6) {
                             ForEach(visibleDevices.prefix(3)) { device in
                                 BTDeviceRow(device: device)
@@ -46,12 +38,21 @@ struct BluetoothCard: View {
                                     .foregroundStyle(.secondary)
                             }
                         }
+                    } else if bluetooth.permission == .denied || bluetooth.permission == .unsupported {
+                        BluetoothPermissionNotice(permission: bluetooth.permission) {
+                            bluetooth.openPrivacySettings()
+                        }
+                    } else {
+                        Text(settings.bluetoothShowOnlyConnected ? "No connected devices" : "No paired devices")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
         } detail: {
             BluetoothDetailPanelView(bluetooth: bluetooth)
         }
+        .onAppear { bluetooth.refreshOnce() }
     }
 }
 
@@ -74,20 +75,20 @@ struct BluetoothDetailPanelView: View {
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(.primary)
 
-            if bluetooth.permission != .authorized {
-                BluetoothPermissionNotice(permission: bluetooth.permission) {
-                    bluetooth.openPrivacySettings()
-                }
-            } else if visibleDevices.isEmpty {
-                Text(settings.bluetoothShowOnlyConnected ? "No connected devices" : "No paired devices")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
-            } else {
+            if !visibleDevices.isEmpty {
                 VStack(spacing: 6) {
                     ForEach(visibleDevices) { device in
                         BTDeviceRow(device: device)
                     }
                 }
+            } else if bluetooth.permission == .denied || bluetooth.permission == .unsupported {
+                BluetoothPermissionNotice(permission: bluetooth.permission) {
+                    bluetooth.openPrivacySettings()
+                }
+            } else {
+                Text(settings.bluetoothShowOnlyConnected ? "No connected devices" : "No paired devices")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
             }
         }
     }
