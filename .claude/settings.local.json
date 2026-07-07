@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xcodebuild -version)",
+      "Bash(mkdir -p /Users/barendvanderdussen/Documents/ResourceMonitor/ResourceMonitor.xcodeproj)",
+      "WebFetch(domain:usage.pro)"
+    ]
+  }
+}
