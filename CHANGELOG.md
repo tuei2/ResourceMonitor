@@ -7,19 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-07-07
+
 ### Added
 - Wi-Fi name and signal strength (dBm/RSSI) now request Location access, which
   macOS requires; a hint with a shortcut to System Settings shows when it's denied.
 - Screenshots section in the README.
 
 ### Fixed
-- Network card IP addresses no longer wrap mid-value when the VPN badge is shown;
-  they stay on one line and keep priority over the header badge.
-- The "VPN active" badge no longer stretches tall when space is tight (keeps its
-  natural size), and the menu-bar VPN icon uses a better-proportioned glyph.
 - History (CPU, memory, GPU, network, disk) now persists across app restarts:
-  it is saved on quit and restored for up to 8 days, so the day/week graphs are
-  no longer a flat line after reopening. CPU history is now persisted too.
+  saved on quit and restored for up to 8 days, so the day/week graphs are no
+  longer a flat line after reopening. CPU history is now persisted too.
+- Network card: IP addresses moved to their own row so the VPN badge no longer
+  truncates them, and the two popover columns stay equal width again.
+- The "VPN active" badge keeps its natural size when space is tight, and the
+  menu-bar VPN icon uses a shield with a visible lock.
 
 ## [1.0.1] - 2026-07-07
 
@@ -53,6 +55,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - English & Dutch localization, switchable live in Settings.
 - Automatic update checks against GitHub Releases.
 
-[Unreleased]: https://github.com/tuei2/ResourceMonitor/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/tuei2/ResourceMonitor/compare/v1.0.2...HEAD
+[1.0.2]: https://github.com/tuei2/ResourceMonitor/releases/tag/v1.0.2
 [1.0.1]: https://github.com/tuei2/ResourceMonitor/releases/tag/v1.0.1
 [1.0.0]: https://github.com/tuei2/ResourceMonitor/releases/tag/v1.0.0

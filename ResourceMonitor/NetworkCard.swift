@@ -35,7 +35,7 @@ struct NetworkCard: View {
         GlassCard {
             VStack(alignment: .leading, spacing: 10) {
                 // Header
-                HStack(alignment: .top) {
+                HStack(spacing: 8) {
                     Label("Network", systemImage: "network")
                         .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(.secondary)
@@ -45,17 +45,23 @@ struct NetworkCard: View {
                         VPNBadge()
                     }
                     Spacer(minLength: 6)
-                    VStack(alignment: .trailing, spacing: 2) {
-                        if !network.activeInterface.isEmpty {
-                            HStack(spacing: 4) {
-                                Image(systemName: network.connectionType.systemImage)
-                                    .font(.system(size: 10))
-                                    .foregroundStyle(.secondary)
-                                Text(network.activeInterface)
-                                    .font(.system(size: 11, weight: .medium, design: .monospaced))
-                                    .foregroundStyle(.secondary)
-                            }
+                    if !network.activeInterface.isEmpty {
+                        HStack(spacing: 4) {
+                            Image(systemName: network.connectionType.systemImage)
+                                .font(.system(size: 10))
+                                .foregroundStyle(.secondary)
+                            Text(network.activeInterface)
+                                .font(.system(size: 11, weight: .medium, design: .monospaced))
+                                .foregroundStyle(.secondary)
                         }
+                        .fixedSize()
+                    }
+                }
+
+                // IP addresses on their own row so the VPN badge can't squeeze them.
+                if (cfg.shows("localip") && !network.localIP.isEmpty)
+                    || (cfg.shows("externalip") && !network.externalIP.isEmpty) {
+                    VStack(alignment: .trailing, spacing: 2) {
                         if cfg.shows("localip") && !network.localIP.isEmpty {
                             CopyableIPRow(label: "Local", ip: network.localIP)
                         }
@@ -63,7 +69,7 @@ struct NetworkCard: View {
                             CopyableIPRow(label: "Ext", ip: network.externalIP)
                         }
                     }
-                    .layoutPriority(1)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
                 }
 
                 // Live speeds
