@@ -52,16 +52,19 @@ scripts/release.sh 1.0.1
 ```
 
 The script then, in order:
-1. Verifies the tag `v1.0.1` doesn't already exist.
-2. Extracts the `## [1.0.1]` notes from `CHANGELOG.md`.
-3. Sets `CFBundleShortVersionString = 1.0.1` and increments `CFBundleVersion`.
-4. Builds `-configuration Release` into `build/`.
-5. Confirms the built app reports `1.0.1`.
-6. Zips `ResourceMonitor.app` → `ResourceMonitor-1.0.1.zip` with `ditto`.
-7. `git commit -m "Release 1.0.1"`, `git tag v1.0.1`.
-8. Pushes `main` and the tag.
-9. `gh release create v1.0.1` with the zip asset and changelog notes.
-10. Polls `releases/latest` and prints the resulting tag.
+1. Checks the working tree is clean, then `git fetch` and rebases onto
+   `origin/<branch>` so commits added elsewhere (web UI, CI) are integrated and
+   the final push won't be rejected. Aborts cleanly if the rebase can't proceed.
+2. Verifies the tag `v1.0.1` doesn't already exist (locally or on the remote).
+3. Extracts the `## [1.0.1]` notes from `CHANGELOG.md`.
+4. Sets `CFBundleShortVersionString = 1.0.1` and increments `CFBundleVersion`.
+5. Builds `-configuration Release` into `build/`.
+6. Confirms the built app reports `1.0.1`.
+7. Zips `ResourceMonitor.app` → `ResourceMonitor-1.0.1.zip` with `ditto`.
+8. `git commit -m "Release 1.0.1"`, `git tag v1.0.1`.
+9. Pushes `main` and the tag.
+10. `gh release create v1.0.1` with the zip asset and changelog notes.
+11. Polls `releases/latest` and prints the resulting tag.
 
 ### 3. Confirm
 

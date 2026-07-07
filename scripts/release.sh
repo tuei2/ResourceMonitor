@@ -31,7 +31,24 @@ cd "$ROOT"
 PLIST="ResourceMonitor/Info.plist"
 TAG="v$VERSION"
 
-# Refuse to re-release an existing tag.
+# Sync with the remote first: the repo may have commits added elsewhere (web UI,
+# CI workflows). Rebasing our release on top of them keeps history linear and
+# avoids a rejected push at the end.
+if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
+  echo "error: uncommitted changes to tracked files." >&2
+  echo "       commit your changes (including CHANGELOG.md) before releasing." >&2
+  exit 1
+fi
+BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+echo "==> Syncing $BRANCH with origin"
+git fetch origin --tags
+if ! git rebase "origin/$BRANCH"; then
+  git rebase --abort 2>/dev/null || true
+  echo "error: could not rebase onto origin/$BRANCH — resolve manually and retry." >&2
+  exit 1
+fi
+
+# Refuse to re-release an existing tag (local or remote, now that we've fetched).
 if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
   echo "error: tag $TAG already exists" >&2
   exit 1
