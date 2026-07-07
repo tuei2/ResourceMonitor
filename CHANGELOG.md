@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Bluetooth devices no longer appeared on macOS 14+ because the app never
+  requested Bluetooth authorization. The app now requests and checks CoreBluetooth
+  permission and shows a notice with a shortcut to System Settings when access is
+  denied.
+
 ## [1.0.0] - 2026-07-07
 
 ### Added
