@@ -1,6 +1,31 @@
 import Foundation
 import Darwin
 import CoreWLAN
+import CoreLocation
+
+/// macOS gates Wi-Fi SSID/RSSI behind Location Services. This requests the
+/// authorization so CoreWLAN returns real values instead of empty/zero.
+private final class WiFiLocationAuthorizer: NSObject, CLLocationManagerDelegate {
+    private let manager = CLLocationManager()
+    var onChange: ((CLAuthorizationStatus) -> Void)?
+
+    override init() {
+        super.init()
+        manager.delegate = self
+    }
+
+    var status: CLAuthorizationStatus { manager.authorizationStatus }
+
+    func request() {
+        if manager.authorizationStatus == .notDetermined {
+            manager.requestWhenInUseAuthorization()
+        }
+    }
+
+    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        onChange?(manager.authorizationStatus)
+    }
+}
 
 enum NetConnectionType: String {
     case wifi, ethernet, other
@@ -44,6 +69,19 @@ final class NetworkMonitor: ObservableObject, Monitor {
     @Published var wifiTxMbps: Double = 0
     @Published var vpnActive: Bool = false
     @Published var connectionType: NetConnectionType = .other
+    /// True when we're on Wi-Fi but macOS withholds SSID/RSSI for lack of Location access.
+    @Published var wifiLocationDenied: Bool = false
+
+    private let locationAuth = WiFiLocationAuthorizer()
+
+    init() {
+        locationAuth.onChange = { [weak self] status in
+            guard let self else { return }
+            let denied = status == .denied || status == .restricted
+            DispatchQueue.main.async { self.wifiLocationDenied = denied }
+        }
+        locationAuth.request()
+    }
 
     private let queue = DispatchQueue(label: "com.resourcemonitor.network", qos: .utility)
     private var timer: DispatchSourceTimer?

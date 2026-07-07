@@ -62,7 +62,9 @@ struct TimedHistory {
         UserDefaults.standard.set(Date(), forKey: "hist_\(key)_date")
     }
 
-    mutating func load(key: String, maxAge: TimeInterval = 3600) {
+    // Default maxAge covers the longest window (1 week) plus a day of slack, so
+    // day/week history survives an app restart instead of resetting to a flat line.
+    mutating func load(key: String, maxAge: TimeInterval = 8 * 86_400) {
         guard let date = UserDefaults.standard.object(forKey: "hist_\(key)_date") as? Date,
               Date().timeIntervalSince(date) < maxAge,
               let data = UserDefaults.standard.data(forKey: "hist_\(key)"),

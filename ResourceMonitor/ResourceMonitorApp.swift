@@ -23,6 +23,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         appState.thermal.setAllFansAuto()
+        // Persist history so day/week graphs survive a restart.
+        appState.stopAll()
         NSApp.removeObserver(self, forKeyPath: "effectiveAppearance")
     }
 

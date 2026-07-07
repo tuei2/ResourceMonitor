@@ -57,7 +57,12 @@ final class CPUMonitor: ObservableObject, Monitor {
     private let dayInterval:   TimeInterval = 300     // 5min → 288 pts/day
     private let weekInterval:  TimeInterval = 1800    // 30min → 336 pts/week
 
+    private var didLoadHistory = false
+
     func start(interval: Double = 2.0) {
+        // Restore persisted history once, before the first save, so repeated
+        // start() calls during a session don't overwrite in-memory data.
+        if !didLoadHistory { loadHistory(); didLoadHistory = true }
         stop()
         let t = DispatchSource.makeTimerSource(queue: queue)
         t.schedule(deadline: .now(), repeating: interval)
@@ -68,6 +73,7 @@ final class CPUMonitor: ObservableObject, Monitor {
 
     func stop() {
         timer?.cancel(); timer = nil
+        saveHistory()
         // Reset delta state so the first tick after restart doesn't use stale absolute counters
         if let prev = prevInfo {
             vm_deallocate(mach_task_self_,
@@ -76,6 +82,34 @@ final class CPUMonitor: ObservableObject, Monitor {
             prevInfo = nil
             prevInfoCount = 0
         }
+    }
+
+    // MARK: - History persistence
+
+    private struct CPUHistoryData: Codable {
+        var short, hour, day, week: [[Double]]
+    }
+
+    /// Persist the multi-resolution per-core history. Called from stop() on the
+    /// main thread, where the @Published arrays are safe to read.
+    private func saveHistory() {
+        guard !coreHistoryShort.isEmpty else { return }   // never overwrite good data with an empty snapshot
+        let data = CPUHistoryData(short: coreHistoryShort, hour: coreHistoryHour,
+                                  day: coreHistoryDay, week: coreHistoryWeek)
+        guard let encoded = try? JSONEncoder().encode(data) else { return }
+        UserDefaults.standard.set(encoded, forKey: "hist_cpu")
+        UserDefaults.standard.set(Date(), forKey: "hist_cpu_date")
+    }
+
+    private func loadHistory(maxAge: TimeInterval = 8 * 86_400) {
+        guard let date = UserDefaults.standard.object(forKey: "hist_cpu_date") as? Date,
+              Date().timeIntervalSince(date) < maxAge,
+              let raw = UserDefaults.standard.data(forKey: "hist_cpu"),
+              let data = try? JSONDecoder().decode(CPUHistoryData.self, from: raw) else { return }
+        coreHistoryShort = data.short
+        coreHistoryHour  = data.hour
+        coreHistoryDay   = data.day
+        coreHistoryWeek  = data.week
     }
 
     private func update() {

@@ -87,8 +87,12 @@ struct NetworkCard: View {
 
                 Divider().opacity(0.3)
 
-                if cfg.shows("wifi") && !network.wifiSSID.isEmpty {
-                    WiFiInfoRow(network: network)
+                if cfg.shows("wifi") {
+                    if !network.wifiSSID.isEmpty {
+                        WiFiInfoRow(network: network)
+                    } else if network.connectionType == .wifi {
+                        WiFiLocationHint()
+                    }
                 }
 
                 if cfg.shows("usage") {
@@ -170,9 +174,14 @@ struct NetworkDetailPanelView: View {
                     .foregroundStyle(.secondary)
             }
 
-            if cfg.shows("wifi") && !network.wifiSSID.isEmpty {
-                Divider().opacity(0.4)
-                WiFiInfoRow(network: network)
+            if cfg.shows("wifi") {
+                if !network.wifiSSID.isEmpty {
+                    Divider().opacity(0.4)
+                    WiFiInfoRow(network: network)
+                } else if network.connectionType == .wifi {
+                    Divider().opacity(0.4)
+                    WiFiLocationHint()
+                }
             }
         }
     }
@@ -317,6 +326,31 @@ private struct ButterflyChart: View {
                 p.move(to: CGPoint(x: 0, y: mid))
                 p.addLine(to: CGPoint(x: size.width, y: mid))
             }, with: .color(.secondary.opacity(0.3)), lineWidth: 0.5)
+        }
+    }
+}
+
+private struct WiFiLocationHint: View {
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "location.slash")
+                .font(.system(size: 10))
+                .foregroundStyle(.orange)
+            Text("Enable Location access to show Wi-Fi name & signal")
+                .font(.system(size: 10))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+            Button {
+                if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_LocationServices") {
+                    NSWorkspace.shared.open(url)
+                }
+            } label: {
+                Image(systemName: "arrow.up.forward.app")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
         }
     }
 }

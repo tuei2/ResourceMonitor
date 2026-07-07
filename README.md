@@ -2,6 +2,16 @@
 
 A native macOS menu bar app for real-time system monitoring — CPU, memory, network, disk, GPU, battery, Bluetooth, and thermals — in a clean popover with hover detail panels.
 
+## Screenshots
+
+| Dashboard | Detail panel |
+|-----------|--------------|
+| ![Dashboard](docs/screenshots/dashboard.png) | ![Detail panel](docs/screenshots/detail.png) |
+
+| Settings | Menu bar |
+|----------|----------|
+| ![Settings](docs/screenshots/settings.png) | ![Menu bar](docs/screenshots/menubar.png) |
+
 ## Features
 
 - **CPU** — usage, per-core and P/E-core clusters, top processes, load averages

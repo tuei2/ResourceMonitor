@@ -16,5 +16,7 @@
 	<true/>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>ResourceMonitor shows paired Bluetooth device names and connection status.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>ResourceMonitor needs location access to read the Wi-Fi network name and signal strength, which macOS gates behind Location Services.</string>
 </dict>
 </plist>

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Wi-Fi name and signal strength (dBm/RSSI) now request Location access, which
+  macOS requires; a hint with a shortcut to System Settings shows when it's denied.
+- Screenshots section in the README.
+
+### Fixed
+- History (CPU, memory, GPU, network, disk) now persists across app restarts:
+  it is saved on quit and restored for up to 8 days, so the day/week graphs are
+  no longer a flat line after reopening. CPU history is now persisted too.
+
 ## [1.0.1] - 2026-07-07
 
 ### Added
