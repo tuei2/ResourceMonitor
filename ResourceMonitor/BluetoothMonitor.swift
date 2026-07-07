@@ -1,5 +1,7 @@
 import Foundation
+import AppKit
 import IOBluetooth
+import CoreBluetooth
 
 struct BluetoothDevice: Identifiable, Equatable {
     let id: String          // address string
@@ -23,11 +25,34 @@ struct BluetoothDevice: Identifiable, Equatable {
     }
 }
 
-final class BluetoothMonitor: ObservableObject, Monitor {
+/// High-level Bluetooth permission state for the UI.
+enum BluetoothPermission: Equatable {
+    case unknown       // not yet determined / manager still initializing
+    case authorized
+    case denied        // user denied or restricted
+    case unsupported   // no Bluetooth hardware / powered off at system level
+}
+
+final class BluetoothMonitor: NSObject, ObservableObject, Monitor {
     @Published var devices: [BluetoothDevice] = []
+    @Published var permission: BluetoothPermission = .unknown
 
     private let queue = DispatchQueue(label: "com.resourcemonitor.bluetooth", qos: .utility)
     private var timer: DispatchSourceTimer?
+
+    // CoreBluetooth is required so macOS grants us Bluetooth access (TCC).
+    // Without an initialized central manager, IOBluetooth.pairedDevices()
+    // returns an empty list on macOS 14+.
+    private var central: CBCentralManager?
+
+    override init() {
+        super.init()
+        // Creating the manager triggers the authorization prompt on first launch
+        // and lets us observe the current authorization state.
+        central = CBCentralManager(delegate: self, queue: nil,
+                                   options: [CBCentralManagerOptionShowPowerAlertKey: false])
+        refreshPermission()
+    }
 
     func start(interval: Double = 2.0) {
         stop()
@@ -40,6 +65,32 @@ final class BluetoothMonitor: ObservableObject, Monitor {
 
     func stop() { timer?.cancel(); timer = nil }
 
+    /// Opens the Bluetooth privacy pane so the user can grant access.
+    func openPrivacySettings() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Bluetooth") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
+    // MARK: - Permission
+
+    private func refreshPermission() {
+        let auth = CBManager.authorization
+        let newState: BluetoothPermission
+        switch auth {
+        case .allowedAlways:  newState = .authorized
+        case .denied, .restricted: newState = .denied
+        case .notDetermined:  newState = .unknown
+        @unknown default:     newState = .unknown
+        }
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            if self.permission != newState { self.permission = newState }
+        }
+    }
+
+    // MARK: - Reading
+
     private func update() {
         // IOBluetooth calls must happen on the main thread
         DispatchQueue.main.async { [weak self] in
@@ -48,11 +99,19 @@ final class BluetoothMonitor: ObservableObject, Monitor {
     }
 
     private func readDevices() {
+        refreshPermission()
+
+        // Only attempt to read once we're authorized; otherwise the list would
+        // silently come back empty and mask the real (permission) cause.
+        guard permission == .authorized else {
+            if !devices.isEmpty { devices = [] }
+            return
+        }
+
         guard let paired = IOBluetoothDevice.pairedDevices() as? [IOBluetoothDevice] else { return }
 
         devices = paired.compactMap { device -> BluetoothDevice? in
             guard let name = device.name, !name.isEmpty else { return nil }
-            // Use address as stable ID; fall back to name (more stable than a new UUID each tick)
             let addr      = device.addressString ?? name
             let connected = device.isConnected()
             let battery   = batteryLevel(device)
@@ -97,5 +156,26 @@ final class BluetoothMonitor: ObservableObject, Monitor {
             return .headphones
         }
         return .unknown
+    }
+}
+
+// MARK: - CBCentralManagerDelegate
+
+extension BluetoothMonitor: CBCentralManagerDelegate {
+    func centralManagerDidUpdateState(_ central: CBCentralManager) {
+        refreshPermission()
+        if central.state == .unsupported || central.state == .poweredOff {
+            DispatchQueue.main.async { [weak self] in
+                // Keep an explicit "authorized but unavailable" distinction only
+                // when access is granted; denial takes priority in refreshPermission.
+                if self?.permission == .authorized && central.state == .unsupported {
+                    self?.permission = .unsupported
+                }
+            }
+        }
+        // Once authorized, read immediately rather than waiting for the next tick.
+        if CBManager.authorization == .allowedAlways {
+            DispatchQueue.main.async { [weak self] in self?.readDevices() }
+        }
     }
 }

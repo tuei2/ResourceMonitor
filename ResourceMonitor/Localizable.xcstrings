@@ -2750,6 +2750,70 @@
           }
         }
       }
+    },
+    "Bluetooth access is denied. Enable it to see your devices.": {
+      "localizations": {
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bluetooth-toegang is geweigerd. Schakel dit in om je apparaten te zien."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bluetooth access is denied. Enable it to see your devices."
+          }
+        }
+      }
+    },
+    "Bluetooth is unavailable on this Mac.": {
+      "localizations": {
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bluetooth is niet beschikbaar op deze Mac."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bluetooth is unavailable on this Mac."
+          }
+        }
+      }
+    },
+    "Requesting Bluetooth access…": {
+      "localizations": {
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bluetooth-toegang aanvragen…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Requesting Bluetooth access…"
+          }
+        }
+      }
+    },
+    "Open Bluetooth settings": {
+      "localizations": {
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bluetooth-instellingen openen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Bluetooth settings"
+          }
+        }
+      }
     }
   },
   "version": "1.1"

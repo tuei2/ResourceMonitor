@@ -27,7 +27,11 @@ struct BluetoothCard: View {
                         .toggleStyle(.checkbox)
                     }
 
-                    if visibleDevices.isEmpty {
+                    if bluetooth.permission != .authorized {
+                        BluetoothPermissionNotice(permission: bluetooth.permission) {
+                            bluetooth.openPrivacySettings()
+                        }
+                    } else if visibleDevices.isEmpty {
                         Text(settings.bluetoothShowOnlyConnected ? "No connected devices" : "No paired devices")
                             .font(.system(size: 12))
                             .foregroundStyle(.secondary)
@@ -70,7 +74,11 @@ struct BluetoothDetailPanelView: View {
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(.primary)
 
-            if visibleDevices.isEmpty {
+            if bluetooth.permission != .authorized {
+                BluetoothPermissionNotice(permission: bluetooth.permission) {
+                    bluetooth.openPrivacySettings()
+                }
+            } else if visibleDevices.isEmpty {
                 Text(settings.bluetoothShowOnlyConnected ? "No connected devices" : "No paired devices")
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
@@ -82,6 +90,42 @@ struct BluetoothDetailPanelView: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Permission notice
+
+private struct BluetoothPermissionNotice: View {
+    let permission: BluetoothPermission
+    let onGrant: () -> Void
+
+    private var message: String {
+        switch permission {
+        case .denied:      return "Bluetooth access is denied. Enable it to see your devices."
+        case .unsupported: return "Bluetooth is unavailable on this Mac."
+        case .unknown:     return "Requesting Bluetooth access…"
+        case .authorized:  return ""
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Image(systemName: "lock.slash")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.orange)
+                Text(LocalizedStringKey(message))
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if permission == .denied {
+                Button("Open Bluetooth settings", action: onGrant)
+                    .font(.system(size: 11))
+                    .buttonStyle(.link)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
