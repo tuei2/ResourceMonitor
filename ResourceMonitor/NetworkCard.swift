@@ -63,6 +63,7 @@ struct NetworkCard: View {
                             CopyableIPRow(label: "Ext", ip: network.externalIP)
                         }
                     }
+                    .layoutPriority(1)
                 }
 
                 // Live speeds
@@ -433,9 +434,12 @@ private struct CopyableIPRow: View {
             Text(LocalizedStringKey(label))
                 .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(.secondary)
+                .fixedSize()
             Text(ip)
                 .font(.system(size: 11, design: .monospaced))
                 .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .fixedSize()
             Button {
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(ip, forType: .string)
